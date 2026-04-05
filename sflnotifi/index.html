@@ -1,0 +1,2135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SFL Community Farm Timers</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            color: #0f172a;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #3730a3 100%);
+        }
+        .page-wrap {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 8px 8px;
+        }
+        .global-timer-section {
+            grid-column: 1 / -1; /* Span all columns */
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            margin: 2px 0;
+            display: none; /* Hidden by default, shown when there are global timers */
+            box-sizing: border-box;
+            padding: 0;
+            overflow: hidden;
+        }
+        .global-timer-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            padding: 2px 6px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 4px;
+            width: calc(100% - 10px);
+            max-width: calc(100% - 10px);
+            height: 24px; /* Very compact fixed height */
+            min-height: 24px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        .global-timer-label {
+            font-weight: 600;
+            font-size: 0.75rem;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .global-timer-emoji {
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+        .global-timer-countdown {
+            text-align: right;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #3b82f6;
+            white-space: nowrap;
+        }
+        .farm-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            justify-items: stretch;
+        }
+        .summaries-row, .timers-row {
+            display: contents; /* Makes child elements participate in parent grid */
+        }
+        .farm-column {
+            min-width: 260px;
+        }
+        h2 {
+            font-size: 1rem;
+            margin: 0 0 6px 0;
+            font-weight: 600;
+            color: #fff;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .section {
+            margin-bottom: 6px;
+        }
+        .section#timers1, .section#timers2 {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 6px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+        .panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 4px 8px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+        .timer-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 3px;
+            width: 100%;
+            padding: 6px 10px;
+            margin-bottom: 3px;
+            border: 1px solid rgba(100, 116, 139, 0.1);
+            border-radius: 8px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+        .timer-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(180deg, #3b82f6, #8b5cf6, #3b82f6);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .timer-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            border-color: rgba(100, 116, 139, 0.2);
+        }
+        .timer-card:hover::before {
+            opacity: 1;
+        }
+        .timer-card.expired {
+            opacity: 0.7;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+        .timer-label {
+            font-weight: 600;
+            font-size: 0.8rem;
+            line-height: 1.3;
+            color: #1e293b;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .timer-countdown {
+            text-align: right;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.75rem;
+            line-height: 1.3;
+            min-width: 60px;
+            font-weight: 600;
+            color: #3b82f6;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        #timers1, #timers2 {
+            display: block;
+        }
+        .summary-list {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 4px;
+            margin: 0;
+            padding: 0;
+            overflow-x: auto;
+        }
+        .summary-item {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-size: 0.7rem;
+            line-height: 1.2;
+            font-weight: 500;
+            color: #0c4a6e;
+            white-space: nowrap;
+        }
+        .summary-item .farm-label {
+            font-weight: 600;
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            color: white;
+            padding: 1px 4px;
+            border-radius: 3px;
+            display: inline-block;
+            margin-right: 2px;
+        }
+        .status {
+            color: #64748b;
+            margin-top: 2px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .settings-btn {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            border: none;
+            border-radius: 6px;
+            padding: 6px 14px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+        }
+        .settings-btn:hover {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+        .settings-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .settings-modal-overlay.active {
+            display: flex;
+        }
+        .settings-modal {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 16px;
+            padding: 20px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        .settings-modal h3 {
+            margin: 0 0 16px 0;
+            font-size: 1.1rem;
+            color: #1e293b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .settings-modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #64748b;
+            padding: 0 4px;
+        }
+        .settings-modal-close:hover {
+            color: #1e293b;
+        }
+        .settings-category {
+            margin-bottom: 12px;
+        }
+        .settings-category-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #3b82f6;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .settings-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+            font-size: 0.85rem;
+        }
+        .settings-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: #3b82f6;
+        }
+        .settings-item label {
+            cursor: pointer;
+            flex: 1;
+        }
+        .settings-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .settings-actions button {
+            flex: 1;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-save {
+            background: #3b82f6;
+            color: white;
+        }
+        .btn-save:hover {
+            background: #2563eb;
+        }
+        .btn-select-all {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+        .btn-select-all:hover {
+            background: #cbd5e1;
+        }
+        .btn-deselect-all {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .btn-deselect-all:hover {
+            background: #fca5a5;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-wrap">
+        <div class="farm-container">
+            <!-- Farm Summaries Row -->
+            <div class="summaries-row">
+                <div class="farm-column">
+                    <h2>Farm 1 - Subash</h2>
+                    <div class="section panel" id="summary1"></div>
+                    <div class="section status" id="last-updated1"></div>
+                </div>
+                <div class="farm-column">
+                    <h2>Farm 2 - Big Black Clock</h2>
+                    <div class="section panel" id="summary2"></div>
+                    <div class="section status" id="last-updated2"></div>
+                </div>
+                <div class="farm-column">
+                    <h2>Farm 3 - Iconic Boy</h2>
+                    <div class="section panel" id="summary3"></div>
+                    <div class="section status" id="last-updated3"></div>
+                </div>
+            </div>
+            
+            <!-- Global Floating Island Timer -->
+            <div class="global-timer-section" id="global-timers"></div>
+            
+            <!-- Farm Timers Row -->
+            <div class="timers-row">
+                <div class="farm-column">
+                    <div class="section" id="timers1"></div>
+                </div>
+                <div class="farm-column">
+                    <div class="section" id="timers2"></div>
+                </div>
+                <div class="farm-column">
+                    <div class="section" id="timers3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // Request notification permission
+        if ('Notification' in window) {
+            Notification.requestPermission();
+        }
+
+        let audioContext = null;
+        function ensureAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume().catch(() => {});
+            }
+            return audioContext;
+        }
+
+        document.body.addEventListener('click', () => {
+            ensureAudioContext();
+        }, { once: true });
+
+        const farmNames = {
+            'timer1': 'Subash',
+            'timer2': 'Big Black Clock',
+            'timer3': 'Iconic Boy'
+        };
+
+        const apiUrls = ['/api/farm', '/api/farm2', '/api/farm3'];
+        let refreshTimeoutId = null;
+        let countdownIntervalId = null;
+        let countdownTasks = [];
+        let globalCountdownTasks = [];
+        let backoffTimeoutId = null;
+        let backoffCountdownIntervalId = null;
+        let backoffDelay = 15000;
+        let lastSuccessfulTimers = [];
+        let lastFetchTime = 0;
+        let minFetchInterval = 30000;  // Minimum 30 seconds between fetches
+
+        const RESOURCE_RECOVERY_SECONDS = {
+            Tree: 2 * 60 * 60,
+            Stone: 4 * 60 * 60,
+            Iron: 8 * 60 * 60,
+            Gold: 24 * 60 * 60,
+            Crimstone: 24 * 60 * 60,
+            Sunstone: 3 * 24 * 60 * 60,
+            Oil: 20 * 60 * 60,
+        };
+
+        const CROP_HARVEST_SECONDS = {
+            Sunflower: 1 * 60,
+            Potato: 5 * 60,
+            Rhubarb: 10 * 60,
+            Pumpkin: 30 * 60,
+            Zucchini: 30 * 60,
+            Carrot: 60 * 60,
+            Yam: 60 * 60,
+            Cabbage: 2 * 60 * 60,
+            Broccoli: 2 * 60 * 60,
+            Soybean: 3 * 60 * 60,
+            Beetroot: 4 * 60 * 60,
+            Pepper: 4 * 60 * 60,
+            Cauliflower: 8 * 60 * 60,
+            Parsnip: 12 * 60 * 60,
+            Eggplant: 16 * 60 * 60,
+            Corn: 20 * 60 * 60,
+            Onion: 20 * 60 * 60,
+            Radish: 24 * 60 * 60,
+            Wheat: 24 * 60 * 60,
+            Turnip: 24 * 60 * 60,
+            Kale: 36 * 60 * 60,
+            Artichoke: 36 * 60 * 60,
+            Barley: 48 * 60 * 60,
+        };
+
+        const FRUIT_PLANT_SECONDS = {
+            Tomato: 2 * 60 * 60,
+            Lemon: 4 * 60 * 60,
+            Blueberry: 6 * 60 * 60,
+            Orange: 8 * 60 * 60,
+            Apple: 12 * 60 * 60,
+            Banana: 12 * 60 * 60,
+            Celestine: 6 * 60 * 60,
+            Lunara: 12 * 60 * 60,
+            Duskberry: 24 * 60 * 60,
+        };
+
+        const FLOWER_PLANT_SECONDS = {
+            'Red Pansy': 1 * 24 * 60 * 60,
+            'Yellow Pansy': 1 * 24 * 60 * 60,
+            'Purple Pansy': 1 * 24 * 60 * 60,
+            'White Pansy': 1 * 24 * 60 * 60,
+            'Blue Pansy': 1 * 24 * 60 * 60,
+            'Red Cosmos': 1 * 24 * 60 * 60,
+            'Yellow Cosmos': 1 * 24 * 60 * 60,
+            'Purple Cosmos': 1 * 24 * 60 * 60,
+            'White Cosmos': 1 * 24 * 60 * 60,
+            'Blue Cosmos': 1 * 24 * 60 * 60,
+            'Prism Petal': 1 * 24 * 60 * 60,
+            'Red Balloon Flower': 2 * 24 * 60 * 60,
+            'Yellow Balloon Flower': 2 * 24 * 60 * 60,
+            'Purple Balloon Flower': 2 * 24 * 60 * 60,
+            'White Balloon Flower': 2 * 24 * 60 * 60,
+            'Blue Balloon Flower': 2 * 24 * 60 * 60,
+            'Red Daffodil': 2 * 24 * 60 * 60,
+            'Yellow Daffodil': 2 * 24 * 60 * 60,
+            'Purple Daffodil': 2 * 24 * 60 * 60,
+            'White Daffodil': 2 * 24 * 60 * 60,
+            'Blue Daffodil': 2 * 24 * 60 * 60,
+            'Red Carnation': 5 * 24 * 60 * 60,
+            'Yellow Carnation': 5 * 24 * 60 * 60,
+            'Purple Carnation': 5 * 24 * 60 * 60,
+            'White Carnation': 5 * 24 * 60 * 60,
+            'Blue Carnation': 5 * 24 * 60 * 60,
+            'Red Lotus': 5 * 24 * 60 * 60,
+            'Yellow Lotus': 5 * 24 * 60 * 60,
+            'Purple Lotus': 5 * 24 * 60 * 60,
+            'White Lotus': 5 * 24 * 60 * 60,
+            'Blue Lotus': 5 * 24 * 60 * 60,
+            'Primula Enigma': 5 * 24 * 60 * 60,
+            'Red Edelweiss': 3 * 24 * 60 * 60,
+            'Yellow Edelweiss': 3 * 24 * 60 * 60,
+            'Purple Edelweiss': 3 * 24 * 60 * 60,
+            'White Edelweiss': 3 * 24 * 60 * 60,
+            'Blue Edelweiss': 3 * 24 * 60 * 60,
+            'Red Gladiolus': 3 * 24 * 60 * 60,
+            'Yellow Gladiolus': 3 * 24 * 60 * 60,
+            'Purple Gladiolus': 3 * 24 * 60 * 60,
+            'White Gladiolus': 3 * 24 * 60 * 60,
+            'Blue Gladiolus': 3 * 24 * 60 * 60,
+            'Red Clover': 3 * 24 * 60 * 60,
+            'Yellow Clover': 3 * 24 * 60 * 60,
+            'Purple Clover': 3 * 24 * 60 * 60,
+            'White Clover': 3 * 24 * 60 * 60,
+            'Blue Clover': 3 * 24 * 60 * 60,
+        };
+
+        const GREENHOUSE_HARVEST_SECONDS = {
+            Rice: 32 * 60 * 60,
+            Olive: 44 * 60 * 60,
+            Grape: 12 * 60 * 60,
+        };
+
+        const POWER_COOLDOWN_SECONDS = {
+            'Instant Growth': 72 * 60 * 60,
+            'Tree Blitz': 24 * 60 * 60,
+            'Barnyard Rouse': 120 * 60 * 60,
+            'Greenhouse Guru': 96 * 60 * 60,
+            'Instant Gratification': 96 * 60 * 60,
+            'Petal Blessed': 96 * 60 * 60,
+            'Grease Lightning': 96 * 60 * 60,
+        };
+
+        // Comprehensive emoji mapping for all SFL items
+        function getItemEmoji(itemType, category) {
+            // Complete emoji mapping for all item types
+            const emojis = {
+                // Resources
+                Tree: "🌲",
+                Stone: "🪨", 
+                Iron: "⛓️",
+                Gold: "🥇",
+                Crimstone: "🔴",
+                Sunstone: "☀️",
+                Oil: "🛢️",
+                
+                // Crops
+                Sunflower: "🌻",
+                Potato: "🥔",
+                Pumpkin: "🎃", 
+                Carrot: "🥕",
+                Corn: "🌽",
+                Wheat: "🌾",
+                Cabbage: "🥬",
+                Broccoli: "🥦",
+                Rhubarb: "🌿",
+                Zucchini: "🥒",
+                Yam: "🍠",
+                Soybean: "🫛",
+                Beetroot: "🍠",
+                Pepper: "🌶️",
+                Cauliflower: "🥦",
+                Parsnip: "🥕",
+                Eggplant: "🍆",
+                Onion: "🧅",
+                Radish: "🫜",
+                Turnip: "🥬",
+                Kale: "🥬",
+                Artichoke: "🥦",
+                Barley: "🌾",
+                
+                // Fruits
+                Tomato: "🍅",
+                Apple: "🍎",
+                Banana: "🍌",
+                Orange: "🍊",
+                Lemon: "🍋",
+                Blueberry: "🫐",
+                Celestine: "⭐",
+                Lunara: "🌙",
+                Duskberry: "🌑",
+                
+                // Animals
+                Chicken: "🐔",
+                Cow: "🐄", 
+                Sheep: "🐑",
+                
+                // Greenhouse
+                Rice: "🌾",
+                Olive: "🫒",
+                Grape: "🍇",
+                
+                // Flowers - all types use 🌷
+                "Red Pansy": "🌷",
+                "Yellow Pansy": "🌷",
+                "Purple Pansy": "🌷",
+                "White Pansy": "🌷",
+                "Blue Pansy": "🌷",
+                "Red Cosmos": "🌷",
+                "Yellow Cosmos": "🌷",
+                "Purple Cosmos": "🌷",
+                "White Cosmos": "🌷",
+                "Blue Cosmos": "🌷",
+                "Prism Petal": "🌷",
+                "Red Balloon Flower": "🌷",
+                "Yellow Balloon Flower": "🌷",
+                "Purple Balloon Flower": "🌷",
+                "White Balloon Flower": "🌷",
+                "Blue Balloon Flower": "🌷",
+                "Red Daffodil": "🌷",
+                "Yellow Daffodil": "🌷",
+                "Purple Daffodil": "🌷",
+                "White Daffodil": "🌷",
+                "Blue Daffodil": "🌷",
+                "Red Carnation": "🌷",
+                "Yellow Carnation": "🌷",
+                "Purple Carnation": "🌷",
+                "White Carnation": "🌷",
+                "Blue Carnation": "🌷",
+                "Red Lotus": "🌷",
+                "Yellow Lotus": "🌷",
+                "Purple Lotus": "🌷",
+                "White Lotus": "🌷",
+                "Blue Lotus": "🌷",
+                "Primula Enigma": "🌷",
+                "Red Edelweiss": "🌷",
+                "Yellow Edelweiss": "🌷",
+                "Purple Edelweiss": "🌷",
+                "White Edelweiss": "🌷",
+                "Blue Edelweiss": "🌷",
+                "Red Gladiolus": "🌷",
+                "Yellow Gladiolus": "🌷",
+                "Purple Gladiolus": "🌷",
+                "White Gladiolus": "🌷",
+                "Blue Gladiolus": "🌷",
+                "Red Clover": "🌷",
+                "Yellow Clover": "🌷",
+                "Purple Clover": "🌷",
+                "White Clover": "🌷",
+                "Blue Clover": "🌷",
+                
+                // Buildings & Special
+                Beehive: "🐝",
+                "Lava Pit": "🌋",
+                Mushroom: "🍄",
+                "Wild Mushroom": "🍄",
+                "Magic Mushroom": "🍄‍🟫",
+                
+                // Pets
+                "Maneki Neko": "🐱",
+                "Pirate Chest": "🏴‍☠️",
+                "VIP Chest": "💎",
+                "Daily Rewards": "🎁",
+                "Daily reward": "🎁",
+                Shipments: "🚢",
+                
+                // Shrines
+                "Fox Shrine": "🦊",
+                "Hound Shrine": "🐕",
+                "Boar Shrine": "🐗",
+                "Sparrow Shrine": "🐦",
+                "Toucan Shrine": "🦜",
+                "Collie Shrine": "🐕",
+                "Badger Shrine": "🦡",
+                "Stag Shrine": "🦌",
+                "Mole Shrine": "🐹",
+                "Bear Shrine": "🐻",
+                "Tortoise Shrine": "🐢",
+                "Moth Shrine": "🦋",
+                "Bantam Shrine": "🐓",
+                "Legendary Shrine": "👑",
+                "Obsidian Shrine": "🖤",
+                "Trading Shrine": "💰",
+                
+                // Powers - all use ⚡
+                "Instant Growth": "⚡",
+                "Tree Blitz": "⚡",
+                "Barnyard Rouse": "⚡",
+                "Greenhouse Guru": "⚡",
+                "Instant Gratification": "⚡",
+                "Petal Blessed": "⚡",
+                "Grease Lightning": "⚡",
+                
+                // Other
+                "Floating Island": "🏝️",
+                "VIP Expiration": "💎",
+                "Bud Box": "📦",
+            };
+
+            // Handle specific patterns first
+            
+            // Animal wake/love timers
+            if (itemType.includes("Chicken") || itemType.includes("chicken")) {
+                if (itemType.includes("wake") || itemType.includes("Wake")) return "🐔⏰";
+                if (itemType.includes("love") || itemType.includes("Love")) return "🐔💕";
+                return "🐔";
+            }
+            if (itemType.includes("Cow") || itemType.includes("cow")) {
+                if (itemType.includes("wake") || itemType.includes("Wake")) return "🐄⏰";
+                if (itemType.includes("love") || itemType.includes("Love")) return "🐄💕";
+                return "🐄";
+            }
+            if (itemType.includes("Sheep") || itemType.includes("sheep")) {
+                if (itemType.includes("wake") || itemType.includes("Wake")) return "🐑⏰";
+                if (itemType.includes("love") || itemType.includes("Love")) return "🐑💕";
+                return "🐑";
+            }
+            
+            // Pet actions
+            if (itemType.includes("nap") || itemType.includes("Nap")) return "😴";
+            if (itemType.includes("feed") || itemType.includes("Feed")) return "🍖";
+            
+            // Power cooldowns - check before generic cooldown check
+            const powerNames = ['Instant Growth', 'Tree Blitz', 'Barnyard Rouse', 'Greenhouse Guru', 'Instant Gratification', 'Petal Blessed', 'Grease Lightning'];
+            for (const powerName of powerNames) {
+                if (itemType.includes(powerName)) return "⚡";
+            }
+            
+            // Cooldowns
+            if (itemType.includes("cooldown") || itemType.includes("Cooldown")) return "⏳";
+            
+            // Shrines
+            if (itemType.includes("shrine") || itemType.includes("Shrine")) return "⛩️";
+            
+            // Reset timers
+            if (itemType.includes("reset") || itemType.includes("Reset")) return "🔄";
+            
+            // Reward timers
+            if (itemType.includes("reward") || itemType.includes("Reward")) return "🎁";
+            
+            // VIP
+            if (itemType.includes("VIP")) return "💎";
+            
+            // Chest timers
+            if (itemType.includes("chest") || itemType.includes("Chest")) return "📦";
+            
+            // Production
+            if (itemType.includes("production") || itemType.includes("Production")) return "🏭";
+            
+            // Craft
+            if (itemType.includes("craft") || itemType.includes("Craft")) return "🔨";
+            
+            // Greenhouse
+            if (itemType.includes("greenhouse") || itemType.includes("Greenhouse")) return "🏠";
+            
+            // Desert Dig
+            if (itemType.includes("Desert Dig")) return "🏜️";
+            
+            // Floating Island
+            if (itemType.includes("Floating Island")) {
+                if (itemType.includes("arrives")) return "🏝️➡️";
+                if (itemType.includes("leaves")) return "🏝️⬅️";
+                return "🏝️";
+            }
+            
+            // Check direct emoji mapping
+            if (emojis[itemType]) return emojis[itemType];
+            
+            // Default emoji - use a generic plant emoji instead of clock
+            return "🌱";
+        }
+
+        function formatCountdown(expiryTimestamp) {
+            const now = Date.now();
+            const diff = expiryTimestamp - now;
+            if (isNaN(diff)) return '--';
+            if (diff <= 0) return 'Ready now';
+
+            const seconds = Math.floor(diff / 1000);
+            const days = Math.floor(seconds / 86400);
+            const hours = Math.floor((seconds % 86400) / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+
+            return [
+                days ? `${days}d` : null,
+                hours ? `${hours}h` : null,
+                minutes ? `${minutes}m` : null,
+                `${secs}s`,
+            ].filter(Boolean).join(' ');
+        }
+
+        function getNextDailyReset() {
+            const now = new Date();
+            const next = new Date(now);
+            next.setUTCDate(next.getUTCDate() + 1);
+            next.setUTCHours(0, 0, 0, 0);
+            return next.getTime();
+        }
+
+        function getMagicMushroomSeconds(islandType) {
+            const map = {
+                basic: 48 * 60 * 60,
+                petal_paradise: 36 * 60 * 60,
+                desert: 24 * 60 * 60,
+                volcano: 22 * 60 * 60,
+            };
+            return map[islandType] || 48 * 60 * 60;
+        }
+
+        function toNumber(value) {
+            return Number(value) || 0;
+        }
+
+        function addTimer(timers, label, expiry, details = '', count = 1) {
+            if (!expiry || isNaN(expiry)) return;
+            timers.push({ label, expiry: Number(expiry), details, count });
+        }
+
+        function getExpiryFromObject(obj) {
+            if (!obj || typeof obj !== 'object') return 0;
+            if (obj.readyAt) return toNumber(obj.readyAt);
+            if (obj.expiresAt) return toNumber(obj.expiresAt);
+            if (obj.completedAt) return toNumber(obj.completedAt);
+            if (obj.finishedAt) return toNumber(obj.finishedAt);
+            if (obj.startedAt && obj.duration) return toNumber(obj.startedAt) + toNumber(obj.duration);
+            if (obj.createdAt && obj.duration) return toNumber(obj.createdAt) + toNumber(obj.duration);
+            return 0;
+        }
+
+        function getLabelFromObject(obj, path) {
+            if (!obj || typeof obj !== 'object') return path;
+            const label = obj.name || obj.item || obj.recipe || obj.product || obj.title || obj.type || obj.label;
+            if (label) return String(label);
+            let defaultLabel = path.replace(/^.*\./, '');
+            defaultLabel = defaultLabel.replace(/\[\d+\]/g, '');
+            defaultLabel = defaultLabel.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim();
+            if (!defaultLabel) return path;
+            return defaultLabel.charAt(0).toUpperCase() + defaultLabel.slice(1);
+        }
+
+        function addCookingFallbackTimers(timers, obj, path = 'farm') {
+            if (!obj || typeof obj !== 'object') return;
+            if (Array.isArray(obj)) {
+                obj.forEach((item, index) => addCookingFallbackTimers(timers, item, `${path}[${index}]`));
+                return;
+            }
+
+            const expiry = getExpiryFromObject(obj);
+            const lowerPath = path.toLowerCase();
+            const cookingKeywords = ['cook', 'kitchen', 'cooking', 'recipe', 'meal', 'oven', 'stove'];
+            if (expiry && cookingKeywords.some((keyword) => lowerPath.includes(keyword))) {
+                const label = getLabelFromObject(obj, path);
+                console.log('Cooking fallback timer', path, label, expiry, obj);
+                addTimer(timers, label, expiry, `Detected timer at ${path}`);
+            }
+
+            for (const [key, value] of Object.entries(obj)) {
+                if (typeof value === 'object' && value !== null) {
+                    addCookingFallbackTimers(timers, value, `${path}.${key}`);
+                }
+            }
+        }
+
+        function collectGlobalTimers(farm) {
+            const timers = [];
+            const now = Date.now();
+
+            // Floating Islands / Mystery Islands - show only the next upcoming timer
+            if (farm.floatingIsland?.schedule && Array.isArray(farm.floatingIsland.schedule)) {
+                let nextIslandTimer = null;
+                let earliestTime = Infinity;
+                
+                farm.floatingIsland.schedule.forEach((period, index) => {
+                    const startTime = toNumber(period.startAt);
+                    const endTime = toNumber(period.endAt);
+                    
+                    // Check for arrival timer
+                    if (now < startTime && startTime < earliestTime) {
+                        earliestTime = startTime;
+                        nextIslandTimer = {
+                            label: `Floating Island arrives`,
+                            expiry: startTime,
+                            details: `Floating island becomes available`,
+                            emoji: '🏝️'
+                        };
+                    }
+                    
+                    // Check for departure timer (only if island is currently active)
+                    if (startTime <= now && now < endTime && endTime < earliestTime) {
+                        earliestTime = endTime;
+                        nextIslandTimer = {
+                            label: `Floating Island leaves`,
+                            expiry: endTime,
+                            details: `Floating island disappears`,
+                            emoji: '🏝️'
+                        };
+                    }
+                });
+                
+                // Add only the next upcoming timer
+                if (nextIslandTimer) {
+                    timers.push(nextIslandTimer);
+                }
+            }
+
+            return timers;
+        }
+
+        function collectTimers(farm, farmIndex = -1) {
+            const timers = [];
+            const now = Date.now();
+
+            if (farm.vip?.expiresAt) {
+                addTimer(timers, 'VIP Expiration', farm.vip.expiresAt, 'VIP bundle expiration');
+            }
+
+            function addResourceTimers(resourceName, entries, timestampKey, fieldPath) {
+                if (!entries || typeof entries !== 'object') return;
+                for (const [id, entry] of Object.entries(entries)) {
+                    const data = entry[fieldPath];
+                    if (!data || !data[timestampKey]) continue;
+                    const timestamp = toNumber(data[timestampKey]);
+                    const recovery = RESOURCE_RECOVERY_SECONDS[resourceName];
+                    if (!recovery) continue;
+                    const expiry = timestamp + recovery * 1000;
+                    addTimer(timers, resourceName, expiry, `Next ${resourceName.toLowerCase()} ready`);
+                }
+            }
+
+            addResourceTimers('Tree', farm.trees, 'choppedAt', 'wood');
+            addResourceTimers('Stone', farm.stones, 'minedAt', 'stone');
+            addResourceTimers('Iron', farm.iron, 'minedAt', 'stone');
+            addResourceTimers('Gold', farm.gold, 'minedAt', 'stone');
+            addResourceTimers('Crimstone', farm.crimstones, 'minedAt', 'stone');
+            addResourceTimers('Sunstone', farm.sunstones, 'minedAt', 'stone');
+            addResourceTimers('Oil', farm.oilReserves, 'drilledAt', 'oil');
+
+            if (farm.crops && typeof farm.crops === 'object') {
+                for (const [_plotId, plot] of Object.entries(farm.crops)) {
+                    const crop = plot?.crop;
+                    if (!crop || !crop.plantedAt || !crop.name) continue;
+                    const harvestSeconds = CROP_HARVEST_SECONDS[crop.name];
+                    if (!harvestSeconds) continue;
+                    const expiry = toNumber(crop.plantedAt) + harvestSeconds * 1000;
+                    addTimer(timers, crop.name, expiry, 'Crop harvest ready');
+                }
+            }
+
+            if (farm.fruitPatches && typeof farm.fruitPatches === 'object') {
+                for (const [_patchId, patch] of Object.entries(farm.fruitPatches)) {
+                    const fruit = patch?.fruit;
+                    if (!fruit || !fruit.name) continue;
+                    const plantSeconds = FRUIT_PLANT_SECONDS[fruit.name];
+                    if (!plantSeconds) continue;
+                    const timestamp = toNumber(fruit.harvestedAt || fruit.plantedAt);
+                    const expiry = timestamp + plantSeconds * 1000;
+                    if (fruit.harvestsLeft > 0) {
+                        addTimer(timers, fruit.name, expiry, 'Fruit harvest ready');
+                    }
+                }
+            }
+
+            if (farm.flowers?.flowerBeds && typeof farm.flowers.flowerBeds === 'object') {
+                for (const [_bedId, bed] of Object.entries(farm.flowers.flowerBeds)) {
+                    const flower = bed?.flower;
+                    if (!flower || !flower.plantedAt || !flower.name) continue;
+                    const flowerSeconds = FLOWER_PLANT_SECONDS[flower.name];
+                    if (!flowerSeconds) continue;
+                    const expiry = toNumber(flower.plantedAt) + flowerSeconds * 1000;
+                    addTimer(timers, flower.name, expiry, 'Flower bloom ready');
+                }
+            }
+
+            if (farm.greenhouse?.pots && typeof farm.greenhouse.pots === 'object') {
+                for (const [_potId, pot] of Object.entries(farm.greenhouse.pots)) {
+                    const plant = pot?.plant;
+                    if (!plant || !plant.plantedAt || !plant.name) continue;
+                    const harvestSeconds = GREENHOUSE_HARVEST_SECONDS[plant.name];
+                    if (!harvestSeconds) continue;
+                    const expiry = toNumber(plant.plantedAt) + harvestSeconds * 1000;
+                    addTimer(timers, `${plant.name} greenhouse`, expiry, 'Greenhouse harvest ready');
+                }
+            }
+
+            if (farm.mushrooms) {
+                const islandType = farm.island?.type || 'basic';
+                if (farm.mushrooms.spawnedAt) {
+                    const expiry = toNumber(farm.mushrooms.spawnedAt) + 16 * 60 * 60 * 1000;
+                    addTimer(timers, 'Wild Mushroom', expiry, 'Wild mushroom harvest ready');
+                }
+                if (farm.mushrooms.magicSpawnedAt) {
+                    const expiry = toNumber(farm.mushrooms.magicSpawnedAt) + getMagicMushroomSeconds(islandType) * 1000;
+                    addTimer(timers, 'Magic Mushroom', expiry, 'Magic mushroom ready');
+                }
+            }
+
+            if (farm.bumpkin?.previousPowerUseAt && typeof farm.bumpkin.previousPowerUseAt === 'object') {
+                for (const [powerName, usedAt] of Object.entries(farm.bumpkin.previousPowerUseAt)) {
+                    const lastUsed = toNumber(usedAt);
+                    const cooldown = POWER_COOLDOWN_SECONDS[powerName];
+                    if (!cooldown || !lastUsed) continue;
+                    const expiry = lastUsed + cooldown * 1000;
+                    addTimer(timers, `${powerName} cooldown`, expiry, 'Power becomes available');
+                }
+            }
+
+            if (farm.dailyRewards?.chest?.collectedAt) {
+                addTimer(timers, 'Daily reward reset', getNextDailyReset(), 'Daily reward chest reset');
+            }
+            if (farm.pumpkinPlaza?.pirateChest?.openedAt) {
+                addTimer(timers, 'Pirate chest reset', getNextDailyReset(), 'Pirate chest refresh');
+            }
+
+            if (farm.buildings && typeof farm.buildings === 'object') {
+                for (const [buildingType, list] of Object.entries(farm.buildings)) {
+                    if (!Array.isArray(list)) continue;
+                    list.forEach((building) => {
+                        const readyAt = toNumber(building.readyAt);
+                        if (readyAt) {
+                            addTimer(timers, buildingType, readyAt, 'Building ready');
+                        }
+                        if (building.producing?.readyAt) {
+                            const itemExpiry = toNumber(building.producing.readyAt);
+                            addTimer(timers, `${buildingType} production`, itemExpiry, 'Production ready');
+                        }
+                        if (Array.isArray(building.crafting)) {
+                            building.crafting.forEach((task) => {
+                                const craftExpiry = toNumber(task.readyAt);
+                                if (craftExpiry) {
+                                    addTimer(timers, task.name || `${buildingType} craft`, craftExpiry, 'Crafting ready');
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+
+            // Animals (Chickens, Cows, Sheep) - from henHouse and barn
+            if (farm.henHouse?.animals && typeof farm.henHouse.animals === 'object') {
+                for (const [animalId, animal] of Object.entries(farm.henHouse.animals)) {
+                    if (!animal || !animal.awakeAt || !animal.asleepAt) continue;
+                    
+                    const awakeTime = toNumber(animal.awakeAt);
+                    const asleepTime = toNumber(animal.asleepAt);
+                    const lovedTime = toNumber(animal.lovedAt || 0);
+                    const animalType = animal.type || 'Chicken';
+                    
+                    // Love time calculation (1/3 of sleep cycle)
+                    const sleepCycleDuration = awakeTime - asleepTime;
+                    const lovePeriodDuration = sleepCycleDuration / 3;
+                    const firstLoveAvailableAt = asleepTime + lovePeriodDuration;
+                    
+                    let nextLoveTime;
+                    if (lovedTime > 0) {
+                        nextLoveTime = lovedTime + lovePeriodDuration;
+                        nextLoveTime = Math.max(firstLoveAvailableAt, nextLoveTime);
+                    } else {
+                        nextLoveTime = firstLoveAvailableAt;
+                    }
+                    
+                    const now = Date.now();
+                    const isWakeReady = awakeTime <= now;
+                    const isLoveReady = nextLoveTime <= now;
+                    
+                    // When both are ready, only show wake (not love) to avoid duplicate "Ready now" entries
+                    // When both are active, show both timers
+                    // When wake is ready but love is not, show wake as ready and love as countdown
+                    if (isWakeReady && isLoveReady) {
+                        // Both ready - only show wake
+                        addTimer(timers, `${animalType} wake`, awakeTime, `${animalType} wakes up`);
+                    } else {
+                        // Show both timers (they will show as countdown or ready based on their individual times)
+                        addTimer(timers, `${animalType} wake`, awakeTime, `${animalType} wakes up`);
+                        addTimer(timers, `${animalType} love`, nextLoveTime, `${animalType} ready for love`);
+                    }
+                }
+            }
+
+            if (farm.barn?.animals && typeof farm.barn.animals === 'object') {
+                for (const [animalId, animal] of Object.entries(farm.barn.animals)) {
+                    if (!animal || !animal.awakeAt || !animal.asleepAt) continue;
+                    
+                    const awakeTime = toNumber(animal.awakeAt);
+                    const asleepTime = toNumber(animal.asleepAt);
+                    const lovedTime = toNumber(animal.lovedAt || 0);
+                    const animalType = animal.type || 'Animal';
+                    
+                    // Love time calculation (1/3 of sleep cycle)
+                    const sleepCycleDuration = awakeTime - asleepTime;
+                    const lovePeriodDuration = sleepCycleDuration / 3;
+                    const firstLoveAvailableAt = asleepTime + lovePeriodDuration;
+                    
+                    let nextLoveTime;
+                    if (lovedTime > 0) {
+                        nextLoveTime = lovedTime + lovePeriodDuration;
+                        nextLoveTime = Math.max(firstLoveAvailableAt, nextLoveTime);
+                    } else {
+                        nextLoveTime = firstLoveAvailableAt;
+                    }
+                    
+                    const now = Date.now();
+                    const isWakeReady = awakeTime <= now;
+                    const isLoveReady = nextLoveTime <= now;
+                    
+                    // When both are ready, only show wake (not love) to avoid duplicate "Ready now" entries
+                    // When both are active, show both timers
+                    // When wake is ready but love is not, show wake as ready and love as countdown
+                    if (isWakeReady && isLoveReady) {
+                        // Both ready - only show wake
+                        addTimer(timers, `${animalType} wake`, awakeTime, `${animalType} wakes up`);
+                    } else {
+                        // Show both timers (they will show as countdown or ready based on their individual times)
+                        addTimer(timers, `${animalType} wake`, awakeTime, `${animalType} wakes up`);
+                        addTimer(timers, `${animalType} love`, nextLoveTime, `${animalType} ready for love`);
+                    }
+                }
+            }
+
+            // Lava Pit Timer
+            if (farm.lavaPlaza?.lavaPit?.drilledAt) {
+                const drilledAt = toNumber(farm.lavaPlaza.lavaPit.drilledAt);
+                const lavaPitDuration = 72 * 60 * 60 * 1000;
+                const expiry = drilledAt + lavaPitDuration;
+                addTimer(timers, 'Lava Pit', expiry, 'Lava pit ready');
+            }
+
+            // VIP Chest Resets
+            if (farm.vipChest?.openedAt) {
+                const nextReset = getNextDailyReset();
+                addTimer(timers, 'VIP Chest reset', nextReset, 'VIP chest resets');
+            }
+
+            // Bud Box Resets
+            if (farm.budBox?.openedAt) {
+                const nextReset = getNextDailyReset();
+                addTimer(timers, 'Bud Box reset', nextReset, 'Bud box resets');
+            }
+
+            // Shrine Expiries
+            if (farm.pumpkinPlaza?.shrines && typeof farm.pumpkinPlaza.shrines === 'object') {
+                const shrineNames = ['Fox', 'Hound', 'Boar', 'Sparrow', 'Toucan', 'Collie', 'Badger', 'Stag', 'Mole', 'Bear', 'Tortoise', 'Moth', 'Bantam'];
+                for (const shrineName of shrineNames) {
+                    const shrine = farm.pumpkinPlaza.shrines[shrineName];
+                    if (shrine?.expiresAt) {
+                        const expiryTime = toNumber(shrine.expiresAt);
+                        addTimer(timers, `${shrineName} Shrine`, expiryTime, `${shrineName} shrine expires`);
+                    }
+                }
+                if (farm.pumpkinPlaza.shrines['Legendary']?.expiresAt) {
+                    const expiryTime = toNumber(farm.pumpkinPlaza.shrines['Legendary'].expiresAt);
+                    addTimer(timers, 'Legendary Shrine', expiryTime, 'Legendary shrine expires');
+                }
+                if (farm.pumpkinPlaza.shrines['Obsidian']?.expiresAt) {
+                    const expiryTime = toNumber(farm.pumpkinPlaza.shrines['Obsidian'].expiresAt);
+                    addTimer(timers, 'Obsidian Shrine', expiryTime, 'Obsidian shrine expires');
+                }
+                if (farm.pumpkinPlaza.shrines['Trading']?.expiresAt) {
+                    const expiryTime = toNumber(farm.pumpkinPlaza.shrines['Trading'].expiresAt);
+                    addTimer(timers, 'Trading Shrine', expiryTime, 'Trading shrine expires');
+                }
+            }
+
+            // Beehive Timers - NEW IMPLEMENTATION
+            // Beehives structure: farm.beehives = { [hiveId]: { flowers: [{ attachedUntil: timestamp }] } }
+            if (farm.beehives && typeof farm.beehives === 'object') {
+                let activeBeehiveCount = 0;
+                let earliestExpiry = null;
+                let hasExpiredBeehive = false;
+                
+                for (const [hiveId, hive] of Object.entries(farm.beehives)) {
+                    if (!hive || !hive.flowers || !Array.isArray(hive.flowers)) continue;
+                    
+                    // Check each flower in this hive
+                    for (const flower of hive.flowers) {
+                        if (!flower.attachedUntil) continue;
+                        
+                        // Get the timestamp value
+                        let timestamp = toNumber(flower.attachedUntil);
+                        if (timestamp <= 0) continue;
+                        
+                        // Determine if timestamp is in seconds or milliseconds
+                        // Unix timestamps (seconds) are typically 10 digits (e.g., 1712345678)
+                        // JS timestamps (milliseconds) are typically 13 digits (e.g., 1712345678000)
+                        let expiryMs;
+                        if (timestamp < 10000000000) {
+                            // Timestamp is in seconds, convert to milliseconds
+                            expiryMs = timestamp * 1000;
+                        } else {
+                            // Timestamp is already in milliseconds
+                            expiryMs = timestamp;
+                        }
+                        
+                        // Track if this beehive has an active flower (future expiry)
+                        if (expiryMs > Date.now()) {
+                            activeBeehiveCount++;
+                            if (earliestExpiry === null || expiryMs < earliestExpiry) {
+                                earliestExpiry = expiryMs;
+                            }
+                        } else {
+                            // This beehive has expired
+                            hasExpiredBeehive = true;
+                        }
+                    }
+                }
+                
+                // Add timer for active beehives (showing countdown)
+                if (activeBeehiveCount > 0 && earliestExpiry !== null) {
+                    if (activeBeehiveCount === 1) {
+                        addTimer(timers, 'Beehive', earliestExpiry, 'Beehive flower attachment expires');
+                    } else {
+                        addTimer(timers, 'Beehive', earliestExpiry, 'Beehive flower attachment expires', activeBeehiveCount);
+                    }
+                }
+                
+                // Add "Ready now" timer for expired beehives
+                if (hasExpiredBeehive) {
+                    // Use current time as expiry (will show as "Ready now")
+                    addTimer(timers, 'Beehive', Date.now(), 'Beehive flower attachment expired');
+                }
+            }
+
+            // Pet Timers
+            if (farm.pets && typeof farm.pets === 'object') {
+                // Handle NFT pets
+                if (farm.pets.nfts && typeof farm.pets.nfts === 'object') {
+                    for (const [petId, petData] of Object.entries(farm.pets.nfts)) {
+                        const petName = petData.name || `NFT Pet ${petId}`;
+                        
+                        // Nap/Caress timer
+                        if (petData.pettedAt) {
+                            const napFinishedAt = toNumber(petData.pettedAt) + 2 * 60 * 60 * 1000; // 2 hours
+                            if (napFinishedAt > now) {
+                                addTimer(timers, `${petName} nap`, napFinishedAt, `${petName} finished napping`);
+                            }
+                        }
+                        
+                        // Feed timer (daily)
+                        if (petData.requests?.fedAt) {
+                            const fedAt = toNumber(petData.requests.fedAt);
+                            const todayStart = new Date(now);
+                            todayStart.setUTCHours(0, 0, 0, 0);
+                            const todayStartMs = todayStart.getTime();
+                            
+                            if (fedAt >= todayStartMs) {
+                                // Already fed today, next feed tomorrow
+                                const nextFeedTime = todayStartMs + 24 * 60 * 60 * 1000;
+                                addTimer(timers, `${petName} feed`, nextFeedTime, `${petName} can be fed again`);
+                            } else {
+                                // Not fed today, can feed now
+                                addTimer(timers, `${petName} feed`, now - 1000, `${petName} can be fed`);
+                            }
+                        }
+                    }
+                }
+                
+                // Handle common pets
+                if (farm.pets.common && typeof farm.pets.common === 'object') {
+                    for (const [petName, petData] of Object.entries(farm.pets.common)) {
+                        // Nap/Caress timer
+                        if (petData.pettedAt) {
+                            const napFinishedAt = toNumber(petData.pettedAt) + 2 * 60 * 60 * 1000; // 2 hours
+                            if (napFinishedAt > now) {
+                                addTimer(timers, `${petName} nap`, napFinishedAt, `${petName} finished napping`);
+                            }
+                        }
+                        
+                        // Feed timer (daily)
+                        if (petData.requests?.fedAt) {
+                            const fedAt = toNumber(petData.requests.fedAt);
+                            const todayStart = new Date(now);
+                            todayStart.setUTCHours(0, 0, 0, 0);
+                            const todayStartMs = todayStart.getTime();
+                            
+                            if (fedAt >= todayStartMs) {
+                                // Already fed today, next feed tomorrow
+                                const nextFeedTime = todayStartMs + 24 * 60 * 60 * 1000;
+                                addTimer(timers, `${petName} feed`, nextFeedTime, `${petName} can be fed again`);
+                            } else {
+                                // Not fed today, can feed now
+                                addTimer(timers, `${petName} feed`, now - 1000, `${petName} can be fed`);
+                            }
+                        }
+                    }
+                }
+            }
+
+            addCookingFallbackTimers(timers, farm, 'farm');
+
+            // Group timers by label and handle ready/pending separately
+            const grouped = {};
+            const allExpiries = {}; // Store all expiries for each label
+            
+            timers.forEach((timer) => {
+                const key = timer.label;
+                if (!allExpiries[key]) {
+                    allExpiries[key] = [];
+                }
+                allExpiries[key].push(timer.expiry);
+            });
+            
+            // For each group, create separate entries for ready and pending items
+            for (const [label, expiries] of Object.entries(allExpiries)) {
+                const now = Date.now();
+                const readyExpiries = expiries.filter(e => e <= now);
+                const pendingExpiries = expiries.filter(e => e > now).sort((a, b) => a - b);
+                
+                // If there are ready items, show them as ready
+                if (readyExpiries.length > 0) {
+                    const count = readyExpiries.length;
+                    const displayLabel = count > 1 ? `${label} x${count}` : label;
+                    // Use the most recent expiry (closest to now but still past)
+                    const expiry = Math.max(...readyExpiries);
+                    grouped[`${label}_ready`] = { 
+                        label: displayLabel, 
+                        expiry: expiry, 
+                        details: timers.find(t => t.label === label)?.details || '',
+                        count: 1
+                    };
+                }
+                
+                // If there are pending items, show them with the next closest timer
+                if (pendingExpiries.length > 0) {
+                    const count = pendingExpiries.length;
+                    const displayLabel = count > 1 ? `${label} x${count}` : label;
+                    // Use the earliest future expiry
+                    const expiry = pendingExpiries[0];
+                    grouped[`${label}_pending`] = { 
+                        label: displayLabel, 
+                        expiry: expiry, 
+                        details: timers.find(t => t.label === label)?.details || '',
+                        count: 1
+                    };
+                }
+            }
+
+            return Object.values(grouped)
+                .filter((timer) => timer.details !== 'Building ready')
+                .sort((a, b) => {
+                    const now = Date.now();
+                    const aReady = a.expiry <= now ? 1 : 0;
+                    const bReady = b.expiry <= now ? 1 : 0;
+
+                    // Ready items (expired timers) come first
+                    if (aReady !== bReady) return bReady - aReady;
+                    
+                    // For ready items, sort by how long ago they expired (most recently expired first)
+                    if (aReady && bReady) {
+                        return b.expiry - a.expiry; // More negative (longer ago) comes after
+                    }
+                    
+                    // For non-ready items, sort by remaining time (lowest first)
+                    return a.expiry - b.expiry;
+                });
+        }
+
+        function renderSummary(data, summaryId) {
+            const summaryDiv = document.getElementById(summaryId);
+            if (!data) {
+                // Preserve settings button if it exists
+                const existingBtn = summaryDiv.querySelector('.settings-btn');
+                const btnHtml = existingBtn ? existingBtn.outerHTML : '';
+                summaryDiv.innerHTML = `${btnHtml}<p class="status">No farm data available.</p>`;
+                return;
+            }
+
+            const farmNames = {
+                'summary1': 'Subash',
+                'summary2': 'Big Black Clock',
+                'summary3': 'Iconic Boy'
+            };
+
+            const farmName = farmNames[summaryId] || 'Unknown Farm';
+            const timerCount = collectTimers(data.farm || data).length;
+
+            // Preserve settings button if it exists
+            const existingBtn = summaryDiv.querySelector('.settings-btn');
+            const btnHtml = existingBtn ? existingBtn.outerHTML : '';
+
+            summaryDiv.innerHTML = `${btnHtml}<div class="summary-list">
+                <div class="summary-item">Farm: <span class="farm-label">${farmName}</span></div>
+                <div class="summary-item"><strong>Timers:</strong> ${timerCount}</div>
+            </div>`;
+        }
+
+        function renderGlobalTimers(globalTimers) {
+            const globalSection = document.getElementById('global-timers');
+            
+            if (!globalTimers || globalTimers.length === 0) {
+                globalSection.style.display = 'none';
+                globalSection.innerHTML = '';
+                globalCountdownTasks = [];
+                return;
+            }
+
+            globalSection.style.display = 'block';
+            globalSection.innerHTML = '';
+            globalCountdownTasks = [];
+
+            globalTimers.forEach(timer => {
+                const timerCard = document.createElement('div');
+                timerCard.className = 'global-timer-card';
+                
+                const countdown = formatCountdown(timer.expiry);
+                const isExpired = timer.expiry <= Date.now();
+                
+                timerCard.innerHTML = `
+                    <div class="global-timer-label">
+                        <span class="global-timer-emoji">${timer.emoji || '⏰'}</span>
+                        ${timer.label}
+                    </div>
+                    <div class="global-timer-countdown ${isExpired ? 'expired' : ''}">
+                        ${countdown}
+                    </div>
+                `;
+                
+                globalSection.appendChild(timerCard);
+                
+                // Add to global countdown tasks
+                globalCountdownTasks.push({
+                    timer: timer,
+                    prefix: 'global'
+                });
+            });
+        }
+
+        function scheduleNextRefresh(timers) {
+            if (refreshTimeoutId) {
+                clearTimeout(refreshTimeoutId);
+                refreshTimeoutId = null;
+            }
+
+            if (backoffTimeoutId) {
+                return;
+            }
+
+            if (!timers.length) return;
+            const now = Date.now();
+            const hasExpired = timers.some((timer) => timer.expiry <= now);
+            if (hasExpired) {
+                refreshTimeoutId = setTimeout(fetchData, 500);
+                return;
+            }
+
+            const nextExpiry = timers.reduce((next, timer) => {
+                return timer.expiry > now ? Math.min(next, timer.expiry) : next;
+            }, Infinity);
+
+            if (nextExpiry < Infinity) {
+                refreshTimeoutId = setTimeout(fetchData, Math.max(nextExpiry - now + 500, 500));
+            }
+        }
+
+        function ensureCountdownUpdater() {
+            if (countdownIntervalId) return;
+            if (!countdownTasks.length) return;
+
+            countdownIntervalId = setInterval(() => {
+                const now = Date.now();
+                
+                // Update farm timers
+                countdownTasks.forEach((task) => {
+                    const label = document.getElementById(`${task.prefix}-${task.index}`);
+                    if (!label) {
+                        return;
+                    }
+                    const wasReady = label.textContent === 'Ready now';
+                    const newText = formatCountdown(task.timer.expiry);
+                    label.textContent = newText;
+                    if (!wasReady && newText === 'Ready now') {
+                        notifyTimerReady(task.timer.label, task.prefix);
+                    }
+                });
+                
+                // Update global timers
+                globalCountdownTasks.forEach((task) => {
+                    const countdownElement = document.querySelector(`#global-timers .global-timer-countdown`);
+                    if (countdownElement) {
+                        const wasReady = countdownElement.textContent === 'Ready now';
+                        const newText = formatCountdown(task.timer.expiry);
+                        countdownElement.textContent = newText;
+                        countdownElement.className = `global-timer-countdown ${task.timer.expiry <= now ? 'expired' : ''}`;
+                        if (!wasReady && newText === 'Ready now') {
+                            // Global timer notification
+                            if ('Notification' in window && Notification.permission === 'granted') {
+                                new Notification(`${task.timer.label} ready!`, {
+                                    body: task.timer.details,
+                                    icon: '/favicon.ico'
+                                });
+                            } else {
+                                alert(`${task.timer.label} ready!`);
+                            }
+                        }
+                    }
+                });
+            }, 1000);
+        }
+
+        function stopCountdownUpdaterIfNeeded() {
+            if (!countdownTasks.length && !globalCountdownTasks.length && countdownIntervalId) {
+                clearInterval(countdownIntervalId);
+                countdownIntervalId = null;
+            }
+        }
+
+        function renderTimers(timers, timersId, prefix) {
+            const timersDiv = document.getElementById(timersId);
+            timersDiv.innerHTML = '';
+            countdownTasks = countdownTasks.filter((task) => task.prefix !== prefix);
+
+            // Show all timers (no filtering)
+            let filteredTimers = timers;
+
+            if (!filteredTimers.length) {
+                timersDiv.innerHTML = '<p class="status">No timers found.</p>';
+                stopCountdownUpdaterIfNeeded();
+                return;
+            }
+
+            filteredTimers.forEach((timer, index) => {
+                const card = document.createElement('div');
+                card.className = 'timer-card';
+                if (timer.expiry <= Date.now()) {
+                    card.classList.add('expired');
+                }
+                const labelText = timer.count > 1 ? `${timer.label} x${timer.count}` : timer.label;
+                const emoji = getItemEmoji(timer.label, '');
+                card.innerHTML = `
+                    <div class="timer-label">${emoji} ${labelText}</div>
+                    <div class="timer-countdown" id="${prefix}-${index}">${formatCountdown(timer.expiry)}</div>
+                `;
+                timersDiv.appendChild(card);
+                countdownTasks.push({ timer, prefix, index });
+            });
+
+            ensureCountdownUpdater();
+        }
+
+        function clearBackoffCountdown() {
+            if (backoffCountdownIntervalId) {
+                clearInterval(backoffCountdownIntervalId);
+                backoffCountdownIntervalId = null;
+            }
+        }
+
+        function startBackoffCountdown(delayMs) {
+            clearBackoffCountdown();
+            backoffCountdownIntervalId = setInterval(() => {}, 250);
+        }
+
+        function updateLastUpdated() {
+            const now = new Date();
+            const time = now.toLocaleTimeString();
+            document.getElementById('last-updated1').textContent = `Last refreshed: ${time}`;
+            document.getElementById('last-updated2').textContent = `Last refreshed: ${time}`;
+            document.getElementById('last-updated3').textContent = `Last refreshed: ${time}`;
+        }
+
+        async function fetchData() {
+            try {
+                const now = Date.now();
+                // Prevent fetching too frequently
+                if (now - lastFetchTime < minFetchInterval) {
+                    return;
+                }
+                lastFetchTime = now;
+
+                if (refreshTimeoutId) {
+                    clearTimeout(refreshTimeoutId);
+                    refreshTimeoutId = null;
+                }
+
+                if (backoffTimeoutId) {
+                    clearTimeout(backoffTimeoutId);
+                    backoffTimeoutId = null;
+                }
+
+                const responses = await Promise.allSettled(apiUrls.map(url => fetch(url)));
+                const datas = Array(apiUrls.length).fill(null);
+                const rateLimitedIndices = [];
+                let errorMessages = [];
+
+                responses.forEach((result, index) => {
+                    if (result.status === 'fulfilled') {
+                        const response = result.value;
+                        console.log(`Farm ${index + 1} response status:`, response.status);
+                        if (response.ok) {
+                            datas[index] = response.json();
+                        } else {
+                            if (response.status === 429) {
+                                rateLimitedIndices.push(index);
+                            }
+                            errorMessages.push(`Farm ${index + 1}: ${response.status} ${response.statusText}`);
+                        }
+                    } else {
+                        console.log(`Farm ${index + 1} request failed:`, result.reason);
+                        errorMessages.push(`Farm ${index + 1}: ${result.reason}`);
+                    }
+                });
+
+                clearBackoffCountdown();
+                const resolvedDatas = await Promise.all(datas.map(d => d ? d : Promise.resolve(null)));
+
+                // Collect and render global timers (floating island) from Farm 1
+                if (resolvedDatas[0]) {
+                    const globalTimers = collectGlobalTimers(resolvedDatas[0].farm || resolvedDatas[0]);
+                    renderGlobalTimers(globalTimers);
+                }
+
+                // Render Farm 1
+                if (resolvedDatas[0]) {
+                    const timers1 = collectTimers(resolvedDatas[0].farm || resolvedDatas[0], 0);
+                    renderSummary(resolvedDatas[0], 'summary1');
+                    renderTimers(timers1, 'timers1', 'timer1');
+                    document.getElementById('last-updated1').textContent = `Last refreshed: ${new Date().toLocaleTimeString()}`;
+                } else {
+                    document.getElementById('summary1').innerHTML = '<p class="status">Farm 1 unavailable</p>';
+                    document.getElementById('timers1').innerHTML = '<p class="status">No data</p>';
+                    if (rateLimitedIndices.includes(0)) {
+                        document.getElementById('last-updated1').textContent = `Waiting to load...`;
+                    } else {
+                        document.getElementById('last-updated1').textContent = `Failed to load`;
+                    }
+                }
+
+                // Render Farm 2
+                if (resolvedDatas[1]) {
+                    const timers2 = collectTimers(resolvedDatas[1].farm || resolvedDatas[1], 1);
+                    renderSummary(resolvedDatas[1], 'summary2');
+                    renderTimers(timers2, 'timers2', 'timer2');
+                    document.getElementById('last-updated2').textContent = `Last refreshed: ${new Date().toLocaleTimeString()}`;
+                } else {
+                    document.getElementById('summary2').innerHTML = '<p class="status">Farm 2 unavailable</p>';
+                    document.getElementById('timers2').innerHTML = '<p class="status">No data</p>';
+                    if (rateLimitedIndices.includes(1)) {
+                        document.getElementById('last-updated2').textContent = `Waiting to load...`;
+                    } else {
+                        document.getElementById('last-updated2').textContent = `Failed to load`;
+                    }
+                }
+
+                // Render Farm 3
+                if (resolvedDatas[2]) {
+                    const timers3 = collectTimers(resolvedDatas[2].farm || resolvedDatas[2], 2);
+                    renderSummary(resolvedDatas[2], 'summary3');
+                    renderTimers(timers3, 'timers3', 'timer3');
+                    document.getElementById('last-updated3').textContent = `Last refreshed: ${new Date().toLocaleTimeString()}`;
+                } else {
+                    document.getElementById('summary3').innerHTML = '<p class="status">Farm 3 unavailable</p>';
+                    document.getElementById('timers3').innerHTML = '<p class="status">No data</p>';
+                    if (rateLimitedIndices.includes(2)) {
+                        document.getElementById('last-updated3').textContent = `Waiting to load...`;
+                    } else {
+                        document.getElementById('last-updated3').textContent = `Failed to load`;
+                    }
+                }
+
+                // Schedule next refresh in 30+ seconds
+                refreshTimeoutId = setTimeout(fetchData, minFetchInterval);
+
+                if (errorMessages.length) {
+                    console.warn('Some farm data failed:', errorMessages);
+                }
+            } catch (error) {
+                console.error('Error loading farm data:', error);
+                document.getElementById('timers1').innerHTML = `<p class="status">Error: ${String(error).substring(0, 50)}</p>`;
+                document.getElementById('timers2').innerHTML = `<p class="status">Error: ${String(error).substring(0, 50)}</p>`;
+                document.getElementById('last-updated1').textContent = 'Error loading';
+                document.getElementById('last-updated2').textContent = 'Error loading';
+            }
+        }
+
+        function playBellSound() {
+            try {
+                const audioContext = ensureAudioContext();
+                if (!audioContext) return;
+
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                const metal = audioContext.createOscillator();
+                const metalGain = audioContext.createGain();
+
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+                metal.type = 'triangle';
+                metal.frequency.setValueAtTime(1320, audioContext.currentTime);
+                metalGain.gain.setValueAtTime(0.03, audioContext.currentTime);
+
+                gainNode.gain.setValueAtTime(0.0001, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.18, audioContext.currentTime + 0.02);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.2);
+
+                oscillator.connect(gainNode);
+                metal.connect(metalGain);
+                metalGain.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.start(audioContext.currentTime);
+                metal.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 1.2);
+                metal.stop(audioContext.currentTime + 1.2);
+            } catch (e) {
+                console.log('Audio not supported', e);
+            }
+        }
+
+        function notifyTimerReady(label, prefix) {
+            const farmName = farmNames[prefix] || 'Farm';
+            const title = `${label} ready on ${farmName}`;
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(title, {
+                    body: 'Your timer has expired!',
+                    icon: '/favicon.ico'
+                });
+            } else {
+                alert(title);
+            }
+        }
+
+        // ==================== SETTINGS & SELECTED ITEMS ====================
+        
+        // Store farm data for settings modal
+        let farmDataStore = [null, null, null];
+        let currentSettingsFarmIndex = 0;
+        let selectedTimers = [[], [], []]; // Selected timer labels per farm
+        
+        // Check if localStorage is available
+        function isLocalStorageAvailable() {
+            try {
+                const test = '__localStorage_test__';
+                localStorage.setItem(test, test);
+                localStorage.removeItem(test);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+        
+        // Storage abstraction layer - uses localStorage with cookie fallback
+        const storage = {
+            get: function(key) {
+                if (isLocalStorageAvailable()) {
+                    return localStorage.getItem(key);
+                }
+                // Fallback to cookies
+                const name = key + '=';
+                const decodedCookie = decodeURIComponent(document.cookie);
+                const ca = decodedCookie.split(';');
+                for (let i = 0; i < ca.length; i++) {
+                    let c = ca[i].trim();
+                    if (c.indexOf(name) === 0) {
+                        return c.substring(name.length);
+                    }
+                }
+                return null;
+            },
+            set: function(key, value) {
+                if (isLocalStorageAvailable()) {
+                    localStorage.setItem(key, value);
+                }
+                // Also save to cookie as fallback
+                const expires = new Date();
+                expires.setFullYear(expires.getFullYear() + 1);
+                document.cookie = key + '=' + encodeURIComponent(value) + ';expires=' + expires.toUTCString() + ';path=/';
+            }
+        };
+        
+        // Load settings from storage
+        // If no settings exist, all timers will be shown by default (empty array means show all)
+        function loadSettings() {
+            try {
+                const saved = storage.get('sfl_selected_timers');
+                console.log('Loading settings from storage:', saved);
+                
+                if (saved) {
+                    try {
+                        const parsed = JSON.parse(saved);
+                        for (let i = 0; i < 3; i++) {
+                            if (parsed[i] && Array.isArray(parsed[i])) {
+                                selectedTimers[i] = parsed[i];
+                                console.log(`Loaded settings for farm ${i + 1}:`, parsed[i]);
+                            } else {
+                                selectedTimers[i] = [];
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Error parsing saved settings:', e);
+                    }
+                } else {
+                    console.log('No saved settings found, all timers will be shown');
+                }
+            } catch (e) {
+                console.log('Failed to load settings:', e);
+            }
+        }
+        
+        // Track if settings have been loaded from localStorage
+        let settingsLoaded = false;
+        
+        // All possible timer labels that could appear in the game
+        const ALL_POSSIBLE_TIMERS = [
+            // Resources
+            'Tree', 'Stone', 'Iron', 'Gold', 'Crimstone', 'Sunstone', 'Oil',
+            // Crops
+            'Sunflower', 'Potato', 'Rhubarb', 'Pumpkin', 'Zucchini', 'Carrot', 'Yam',
+            'Cabbage', 'Broccoli', 'Soybean', 'Beetroot', 'Pepper', 'Cauliflower',
+            'Parsnip', 'Eggplant', 'Corn', 'Onion', 'Radish', 'Wheat', 'Turnip',
+            'Kale', 'Artichoke', 'Barley',
+            // Fruits
+            'Tomato', 'Lemon', 'Blueberry', 'Orange', 'Apple', 'Banana',
+            'Celestine', 'Lunara', 'Duskberry',
+            // Flowers
+            'Red Pansy', 'Yellow Pansy', 'Purple Pansy', 'White Pansy', 'Blue Pansy',
+            'Red Cosmos', 'Yellow Cosmos', 'Purple Cosmos', 'White Cosmos', 'Blue Cosmos',
+            'Prism Petal',
+            'Red Balloon Flower', 'Yellow Balloon Flower', 'Purple Balloon Flower', 'White Balloon Flower', 'Blue Balloon Flower',
+            'Red Daffodil', 'Yellow Daffodil', 'Purple Daffodil', 'White Daffodil', 'Blue Daffodil',
+            'Red Carnation', 'Yellow Carnation', 'Purple Carnation', 'White Carnation', 'Blue Carnation',
+            'Red Lotus', 'Yellow Lotus', 'Purple Lotus', 'White Lotus', 'Blue Lotus',
+            'Primula Enigma',
+            'Red Edelweiss', 'Yellow Edelweiss', 'Purple Edelweiss', 'White Edelweiss', 'Blue Edelweiss',
+            'Red Gladiolus', 'Yellow Gladiolus', 'Purple Gladiolus', 'White Gladiolus', 'Blue Gladiolus',
+            'Red Clover', 'Yellow Clover', 'Purple Clover', 'White Clover', 'Blue Clover',
+            // Greenhouse
+            'Rice greenhouse', 'Olive greenhouse', 'Grape greenhouse',
+            // Mushrooms
+            'Wild Mushroom', 'Magic Mushroom',
+            // Powers
+            'Instant Growth cooldown', 'Tree Blitz cooldown', 'Barnyard Rouse cooldown',
+            'Greenhouse Guru cooldown', 'Instant Gratification cooldown', 'Petal Blessed cooldown',
+            'Grease Lightning cooldown',
+            // Animals
+            'Chicken wake', 'Chicken love', 'Cow wake', 'Cow love', 'Sheep wake', 'Sheep love',
+            // Buildings & Production
+            'Beehive', 'Lava Pit', 'VIP Expiration',
+            // Shrines
+            'Fox Shrine', 'Hound Shrine', 'Boar Shrine', 'Sparrow Shrine', 'Toucan Shrine',
+            'Collie Shrine', 'Badger Shrine', 'Stag Shrine', 'Mole Shrine', 'Bear Shrine',
+            'Tortoise Shrine', 'Moth Shrine', 'Bantam Shrine',
+            'Legendary Shrine', 'Obsidian Shrine', 'Trading Shrine',
+            // Daily/Reset
+            'Daily reward reset', 'Pirate chest reset', 'VIP Chest reset', 'Bud Box reset',
+            // Pets
+            'Maneki Neko nap', 'Maneki Neko feed',
+            'Pirate Chest nap', 'Pirate Chest feed',
+            // Other
+            'Floating Island arrives', 'Floating Island leaves',
+        ];
+
+        // No auto-add - user manually selects items from the complete list
+        function updateSettingsWithNewItems() {
+            // This function is now a no-op - we use the static ALL_POSSIBLE_TIMERS list
+        }
+        
+        // Save settings to storage (localStorage or cookies)
+        function saveSettings() {
+            try {
+                storage.set('sfl_selected_timers', JSON.stringify(selectedTimers));
+                console.log('Settings saved to storage');
+            } catch (e) {
+                console.log('Failed to save settings:', e);
+            }
+        }
+        
+        // Open settings modal for a specific farm
+        function openSettings(farmIndex) {
+            currentSettingsFarmIndex = farmIndex;
+            const farmNamesList = ['Subash', 'Big Black Clock', 'Iconic Boy'];
+            document.getElementById('settings-modal-title').textContent = `Settings - ${farmNamesList[farmIndex]}`;
+            
+            const content = document.getElementById('settings-modal-content');
+            const data = farmDataStore[farmIndex];
+            
+            if (!data) {
+                content.innerHTML = '<p class="status">No farm data available. Please wait for data to load.</p>';
+            } else {
+                const allTimers = collectTimers(data.farm || data);
+                renderSettingsContent(content, allTimers, farmIndex);
+            }
+            
+            document.getElementById('settings-modal-overlay').classList.add('active');
+        }
+        
+        // Render settings content with checkboxes
+        function renderSettingsContent(container, timers, farmIndex) {
+            // Group timers by category
+            const categories = {
+                'Resources': [],
+                'Crops': [],
+                'Fruits': [],
+                'Flowers': [],
+                'Greenhouse': [],
+                'Mushrooms': [],
+                'Powers': [],
+                'Animals': [],
+                'Buildings': [],
+                'Pets': [],
+                'Shrines': [],
+                'Daily/Reset': [],
+                'Other': []
+            };
+            
+            timers.forEach(timer => {
+                const label = timer.label.toLowerCase();
+                if (['Tree', 'Stone', 'Iron', 'Gold', 'Crimstone', 'Sunstone', 'Oil'].some(r => timer.label === r)) {
+                    categories['Resources'].push(timer);
+                } else if (CROP_HARVEST_SECONDS[timer.label]) {
+                    categories['Crops'].push(timer);
+                } else if (FRUIT_PLANT_SECONDS[timer.label]) {
+                    categories['Fruits'].push(timer);
+                } else if (FLOWER_PLANT_SECONDS[timer.label]) {
+                    categories['Flowers'].push(timer);
+                } else if (label.includes('greenhouse')) {
+                    categories['Greenhouse'].push(timer);
+                } else if (label.includes('mushroom')) {
+                    categories['Mushrooms'].push(timer);
+                } else if (label.includes('cooldown')) {
+                    categories['Powers'].push(timer);
+                } else if (label.includes('wake') || label.includes('love')) {
+                    categories['Animals'].push(timer);
+                } else if (['Beehive', 'Lava Pit', 'VIP Expiration'].includes(timer.label)) {
+                    categories['Buildings'].push(timer);
+                } else if (label.includes('shrine')) {
+                    categories['Shrines'].push(timer);
+                } else if (label.includes('reset') || label.includes('reward')) {
+                    categories['Daily/Reset'].push(timer);
+                } else if (label.includes('feed') || label.includes('nap')) {
+                    categories['Pets'].push(timer);
+                } else {
+                    categories['Other'].push(timer);
+                }
+            });
+            
+            let html = '';
+            for (const [catName, catTimers] of Object.entries(categories)) {
+                if (catTimers.length === 0) continue;
+                
+                html += `<div class="settings-category">`;
+                html += `<div class="settings-category-title">${catName} (${catTimers.length})</div>`;
+                
+                catTimers.forEach(timer => {
+                    // By default (empty selectedTimers), all items are checked
+                    // If user has saved preferences, use those instead
+                    const hasCustomSelection = selectedTimers[farmIndex] && selectedTimers[farmIndex].length > 0;
+                    const isChecked = hasCustomSelection 
+                        ? selectedTimers[farmIndex].includes(timer.label)
+                        : true; // Default: all checked
+                    html += `<div class="settings-item">`;
+                    html += `<input type="checkbox" id="setting-${timer.label.replace(/[^a-zA-Z0-9]/g, '-')}" ${isChecked ? 'checked' : ''} data-label="${timer.label}">`;
+                    html += `<label for="setting-${timer.label.replace(/[^a-zA-Z0-9]/g, '-')}">${timer.label}</label>`;
+                    html += `</div>`;
+                });
+                
+                html += `</div>`;
+            }
+            
+            html += `<div class="settings-actions">`;
+            html += `<button class="btn-select-all" onclick="selectAllSettings()">Select All</button>`;
+            html += `<button class="btn-deselect-all" onclick="deselectAllSettings()">Deselect All</button>`;
+            html += `<button class="btn-save" onclick="saveSettingsAndClose()">Save & Close</button>`;
+            html += `</div>`;
+            
+            container.innerHTML = html;
+        }
+        
+        // Select all checkboxes
+        function selectAllSettings() {
+            const checkboxes = document.querySelectorAll('#settings-modal-content input[type="checkbox"]');            checkboxes.forEach(cb => cb.checked = true);
+        }
+        
+        // Deselect all checkboxes
+        function deselectAllSettings() {
+            const checkboxes = document.querySelectorAll('#settings-modal-content input[type="checkbox"]');            checkboxes.forEach(cb => cb.checked = false);
+        }
+        
+        // Save settings and close modal
+        function saveSettingsAndClose() {
+            const checkboxes = document.querySelectorAll('#settings-modal-content input[type="checkbox"]');
+            const selected = [];
+            checkboxes.forEach(cb => {
+                if (cb.checked) {
+                    selected.push(cb.dataset.label);
+                }
+            });
+            
+            // Only update the current farm's settings, don't touch others
+            selectedTimers[currentSettingsFarmIndex] = selected;
+            
+            // Save to localStorage
+            saveSettings();
+            
+            closeSettings();
+            
+            // Re-render timers with new filter for current farm only
+            if (farmDataStore[currentSettingsFarmIndex]) {
+                const timers = collectTimers(farmDataStore[currentSettingsFarmIndex].farm || farmDataStore[currentSettingsFarmIndex]);
+                renderTimers(timers, `timers${currentSettingsFarmIndex + 1}`, `timer${currentSettingsFarmIndex + 1}`);
+            }
+        }
+        
+        // Close settings modal
+        function closeSettings() {
+            document.getElementById('settings-modal-overlay').classList.remove('active');
+        }
+        
+        // Close settings when clicking overlay
+        function closeSettingsOnOverlay(event) {
+            if (event.target === document.getElementById('settings-modal-overlay')) {
+                closeSettings();
+            }
+        }
+        
+        // Override fetchData to store farm data and render selected items
+        const originalFetchData = fetchData;
+        fetchData = async function() {
+            try {
+                const now = Date.now();
+                if (now - lastFetchTime < minFetchInterval) {
+                    return;
+                }
+                lastFetchTime = now;
+
+                if (refreshTimeoutId) {
+                    clearTimeout(refreshTimeoutId);
+                    refreshTimeoutId = null;
+                }
+
+                if (backoffTimeoutId) {
+                    clearTimeout(backoffTimeoutId);
+                    backoffTimeoutId = null;
+                }
+
+                const responses = await Promise.allSettled(apiUrls.map(url => fetch(url)));
+                const datas = Array(apiUrls.length).fill(null);
+                const rateLimitedIndices = [];
+                let errorMessages = [];
+
+                responses.forEach((result, index) => {
+                    if (result.status === 'fulfilled') {
+                        const response = result.value;
+                        console.log(`Farm ${index + 1} response status:`, response.status);
+                        if (response.ok) {
+                            datas[index] = response.json();
+                        } else {
+                            if (response.status === 429) {
+                                rateLimitedIndices.push(index);
+                            }
+                            errorMessages.push(`Farm ${index + 1}: ${response.status} ${response.statusText}`);
+                        }
+                    } else {
+                        console.log(`Farm ${index + 1} request failed:`, result.reason);
+                        errorMessages.push(`Farm ${index + 1}: ${result.reason}`);
+                    }
+                });
+
+                clearBackoffCountdown();
+                const resolvedDatas = await Promise.all(datas.map(d => d ? d : Promise.resolve(null)));
+                
+                // Store farm data for settings
+                for (let i = 0; i < 3; i++) {
+                    farmDataStore[i] = resolvedDatas[i];
+                }
+
+                // Update settings to include any new timer items while preserving manual selections
+                updateSettingsWithNewItems();
+
+                // Collect and render global timers (floating island) from Farm 1
+                if (resolvedDatas[0]) {
+                    const globalTimers = collectGlobalTimers(resolvedDatas[0].farm || resolvedDatas[0]);
+                    renderGlobalTimers(globalTimers);
+                }
+
+                // Render Farm 1
+                if (resolvedDatas[0]) {
+                    const timers1 = collectTimers(resolvedDatas[0].farm || resolvedDatas[0]);
+                    renderSummary(resolvedDatas[0], 'summary1');
+                    renderTimers(timers1, 'timers1', 'timer1');
+                    document.getElementById('last-updated1').textContent = `Last refreshed: ${new Date().toLocaleTimeString()}`;
+                } else {
+                    document.getElementById('summary1').innerHTML = '<p class="status">Farm 1 unavailable</p>';
+                    document.getElementById('timers1').innerHTML = '<p class="status">No data</p>';
+                    if (rateLimitedIndices.includes(0)) {
+                        document.getElementById('last-updated1').textContent = `Waiting to load...`;
+                    } else {
+                        document.getElementById('last-updated1').textContent = `Failed to load`;
+                    }
+                }
+
+                // Render Farm 2
+                if (resolvedDatas[1]) {
+                    const timers2 = collectTimers(resolvedDatas[1].farm || resolvedDatas[1]);
+                    renderSummary(resolvedDatas[1], 'summary2');
+                    renderTimers(timers2, 'timers2', 'timer2');
+                    document.getElementById('last-updated2').textContent = `Last refreshed: ${new Date().toLocaleTimeString()}`;
+                } else {
+                    document.getElementById('summary2').innerHTML = '<p class="status">Farm 2 unavailable</p>';
+                    document.getElementById('timers2').innerHTML = '<p class="status">No data</p>';
+                    if (rateLimitedIndices.includes(1)) {
+                        document.getElementById('last-updated2').textContent = `Waiting to load...`;
+                    } else {
+                        document.getElementById('last-updated2').textContent = `Failed to load`;
+                    }
+                }
+
+                // Render Farm 3
+                if (resolvedDatas[2]) {
+                    const timers3 = collectTimers(resolvedDatas[2].farm || resolvedDatas[2]);
+                    renderSummary(resolvedDatas[2], 'summary3');
+                    renderTimers(timers3, 'timers3', 'timer3');
+                    document.getElementById('last-updated3').textContent = `Last refreshed: ${new Date().toLocaleTimeString()}`;
+                } else {
+                    document.getElementById('summary3').innerHTML = '<p class="status">Farm 3 unavailable</p>';
+                    document.getElementById('timers3').innerHTML = '<p class="status">No data</p>';
+                    if (rateLimitedIndices.includes(2)) {
+                        document.getElementById('last-updated3').textContent = `Waiting to load...`;
+                    } else {
+                        document.getElementById('last-updated3').textContent = `Failed to load`;
+                    }
+                }
+
+                // Schedule next refresh in 30+ seconds
+                refreshTimeoutId = setTimeout(fetchData, minFetchInterval);
+
+                if (errorMessages.length) {
+                    console.warn('Some farm data failed:', errorMessages);
+                }
+            } catch (error) {
+                console.error('Error loading farm data:', error);
+                document.getElementById('timers1').innerHTML = `<p class="status">Error: ${String(error).substring(0, 50)}</p>`;
+                document.getElementById('timers2').innerHTML = `<p class="status">Error: ${String(error).substring(0, 50)}</p>`;
+                document.getElementById('last-updated1').textContent = 'Error loading';
+                document.getElementById('last-updated2').textContent = 'Error loading';
+            }
+        };
+        
+        // Initialize settings on page load
+        loadSettings();
+        
+        // Start the initial data fetch
+        fetchData();
+    </script>
+</body>
+</html>
